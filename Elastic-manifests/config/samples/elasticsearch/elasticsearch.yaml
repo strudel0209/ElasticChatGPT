@@ -1,0 +1,108 @@
+# This sample sets up an Elasticsearch cluster with 3 nodes.
+apiVersion: elasticsearch.k8s.elastic.co/v1
+kind: Elasticsearch
+metadata:
+  # uncomment the lines below to copy the specified node labels as pod annotations and use it as an environment variable in the Pods
+  #annotations:
+  #  eck.k8s.elastic.co/downward-node-labels: "topology.kubernetes.io/zone"
+  name: elasticsearch
+spec:
+  version: 8.9.2
+  nodeSets:
+  - name: masters
+    count: 1
+    config:
+      node.roles: ["master"]
+      xpack.ml.enabled: true
+      #node.store.allow_mmap: false
+    podTemplate:
+      spec:
+        containers:
+        - name: elasticsearch
+          # specify resource limits and requests
+          resources:
+            limits:
+              memory: 4Gi
+              cpu: 1
+          env:
+          - name: ES_JAVA_OPTS
+            value: "-Xms2g -Xmx2g"
+        initContainers:
+        - name: sysctl
+          securityContext:
+            privileged: true
+            runAsUser: 0
+          command: ['sh', '-c', 'sysctl -w vm.max_map_count=262144']
+    volumeClaimTemplates:
+      - metadata:
+          name: elasticsearch-data # Do not change this name unless you set up a volume mount for the data path.
+        spec:
+          accessModes:
+          - ReadWriteOnce
+          resources:
+            requests:
+              storage: 5Gi
+          storageClassName: elk-azurefile-sc
+  - name: data
+    count: 2
+    config:
+      node.roles: ["data", "ingest", "transform"]
+      #node.store.allow_mmap: false
+    podTemplate:
+      spec:
+        containers:
+        - name: elasticsearch
+          # specify resource limits and requests
+          resources:
+            limits:
+              memory: 4Gi
+              cpu: 2
+          env:
+          - name: ES_JAVA_OPTS
+            value: "-Xms2g -Xmx2g"
+        initContainers:
+        - name: sysctl
+          securityContext:
+            privileged: true
+            runAsUser: 0
+          command: ['sh', '-c', 'sysctl -w vm.max_map_count=262144']
+    volumeClaimTemplates:
+      - metadata:
+          name: elasticsearch-data # Do not change this name unless you set up a volume mount for the data path.
+        spec:
+          accessModes:
+          - ReadWriteOnce
+          resources:
+            requests:
+              storage: 20Gi
+          storageClassName: elk-azurefile-sc
+  - name: ml
+    count: 1
+    config:
+      node.roles: ["ml"]
+      node.store.allow_mmap: false
+    podTemplate:
+      spec:
+        # initContainers:
+        # - name: sysctl
+        #   securityContext:
+        #     privileged: true
+        #     runAsUser: 0
+        #   command: ['sh', '-c', 'sysctl -w vm.max_map_count=262144']
+        containers:
+        - name: elasticsearch
+          # specify resource limits and requests
+          resources:
+            limits:
+              memory: 8Gi
+              cpu: 2
+    volumeClaimTemplates:
+      - metadata:
+          name: elasticsearch-data # Do not change this name unless you set up a volume mount for the data path.
+        spec:
+          accessModes:
+          - ReadWriteOnce
+          resources:
+            requests:
+              storage: 10Gi
+          storageClassName: elk-azurefile-sc
