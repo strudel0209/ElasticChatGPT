@@ -1,0 +1,11 @@
+apiVersion: v1 
+kind: PersistentVolumeClaim 
+metadata: 
+  name: elk-azurefile 
+spec: 
+  accessModes: 
+    - ReadWriteMany 
+  storageClassName: elk-azurefile-sc 
+  resources: 
+    requests: 
+      storage: 50Gi
